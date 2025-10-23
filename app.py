@@ -2,59 +2,29 @@ import streamlit as st
 import os
 from PyPDF2 import PdfReader
 from docx import Document
-from langchain.prompts import PromptTemplate
-from langchain.chains import LLMChain
-from langchain.llms import OpenAI
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.vectorstores import FAISS
-from langchain.embeddings import HuggingFaceEmbeddings
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.cluster import KMeans
 
-# Create a folder called 'uploads' if it doesn't exist
+# Create uploads folder
 os.makedirs("uploads", exist_ok=True)
 
 st.set_page_config(page_title="EzyHUB Research Agent", page_icon="🔍", layout="centered")
 
-with st.sidebar:
-    st.header("⚙️ Advanced Options")
-    model_choice = st.selectbox("Choose model", ["Local LLM", "GPT-4", "Mix"])
-    show_sources = st.checkbox("Show source notes")
-    language = st.selectbox("Language", ["English", "Hindi", "Telugu", "Tamil"])
-
-st.markdown("""
-<div style='text-align: center;'>
-    <a href='https://github.com/gudipatipreethi/ezyhub-agent' target='_blank'>
-        <img src='ezyhub_logo.png' width='150'>
-    </a>
-</div>
-""", unsafe_allow_html=True)
-
-st.markdown("""
-### 👋 Welcome to EzyHUB Research Agent
-
-Upload your research notes, PDFs, or Word files. Ask questions in any language. Get clear, inclusive answers with source references.
-
-**Use cases:**
-- Client presentations
-- Rural outreach
-- Multilingual support
-- Visual storytelling
-""")
-
 st.title("EzyHUB Research Agent")
-st.markdown("Ask questions based on your research notes, PDFs, and URLs.")
+st.markdown("Upload your research file and get a quick summary.")
 
+# Upload file
 uploaded_file = st.file_uploader("📎 Upload your research file", type=["pdf", "txt", "docx"])
 if uploaded_file is not None:
     file_name = uploaded_file.name
     file_path = os.path.join("uploads", file_name)
 
-    # Save the uploaded file permanently
+    # Save file
     with open(file_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
-
     st.success(f"✅ File saved as: {file_name}")
 
-    # Extract text based on file type
+    # Extract text
     if file_name.endswith(".pdf"):
         reader = PdfReader(file_path)
         text = "\n".join([page.extract_text() for page in reader.pages if page.extract_text()])
@@ -65,19 +35,23 @@ if uploaded_file is not None:
         with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
             text = f.read()
 
-    # Show preview
+    # Preview
     st.text_area("📄 File Preview", text[:1000])
 
-    # Generate summary
-    summary_prompt = PromptTemplate.from_template("Summarize this document:\n{text}")
-    llm = OpenAI(openai_api_key="your-openai-key")  # Replace with your actual key
-    summary_chain = LLMChain(llm=llm, prompt=summary_prompt)
-    summary = summary_chain.run({"text": text})
-
+    # Basic summary using TF-IDF + KMeans
     st.markdown("📝 **Summary of the Document:**")
-    st.info(summary)
+    try:
+        sentences = text.split(". ")
+        vectorizer = TfidfVectorizer(stop_words="english")
+        X = vectorizer.fit_transform(sentences)
+        kmeans = KMeans(n_clusters=1, random_state=42).fit(X)
+        summary_sentences = [sentences[i] for i in range(len(sentences)) if kmeans.labels_[i] == 0]
+        summary = " ".join(summary_sentences[:5])
+        st.info(summary)
+    except Exception as e:
+        st.warning("⚠️ Could not generate summary. Try a simpler file.")
 
-    # Show saved files (optional)
+    # Show saved files
     saved_files = os.listdir("uploads")
     if saved_files:
         st.markdown("📂 **Saved Files:**")
