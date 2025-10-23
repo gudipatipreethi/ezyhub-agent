@@ -56,3 +56,33 @@ if uploaded_file is not None:
     file_text = uploaded_file.read().decode("utf-8", errors="ignore")
     st.text_area("📄 File Preview", file_text[:1000])  # Show first 1000 characters
 
+# 🔍 Extract text from the uploaded file
+if uploaded_file.name.endswith(".pdf"):
+    from PyPDF2 import PdfReader
+    reader = PdfReader(file_path)
+    text = "\n".join([page.extract_text() for page in reader.pages if page.extract_text()])
+
+elif uploaded_file.name.endswith(".docx"):
+    from docx import Document
+    doc = Document(file_path)
+    text = "\n".join([para.text for para in doc.paragraphs])
+
+else:
+    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+        text = f.read()
+
+st.text_area("📄 File Preview", text[:1000])  # Optional preview
+
+# 📝 Generate summary using LangChain
+from langchain.prompts import PromptTemplate
+from langchain.chains import LLMChain
+from langchain.llms import OpenAI
+
+summary_prompt = PromptTemplate.from_template("Summarize this document:\n{text}")
+llm = OpenAI(openai_api_key="your-openai-key")  # Replace with your actual key
+summary_chain = LLMChain(llm=llm, prompt=summary_prompt)
+summary = summary_chain.run({"text": text})
+
+st.markdown("📝 **Summary of the Document:**")
+st.info(summary)
+
