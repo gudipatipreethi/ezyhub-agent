@@ -5,7 +5,7 @@ from docx import Document
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
 
-# Create uploads folder
+# Create uploads folder if it doesn't exist
 os.makedirs("uploads", exist_ok=True)
 
 st.set_page_config(page_title="EzyHUB Research Agent", page_icon="🔍", layout="centered")
@@ -19,10 +19,10 @@ if uploaded_file is not None:
     file_name = uploaded_file.name
     file_path = os.path.join("uploads", file_name)
 
-    # Save file
+    # Save file permanently
     with open(file_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
-    st.success(f"✅ File saved as: {file_name}")
+    st.success(f"✅ File saved permanently as: {file_name}")
 
     # Extract text
     if file_name.endswith(".pdf"):
@@ -35,10 +35,10 @@ if uploaded_file is not None:
         with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
             text = f.read()
 
-    # Preview
+    # Preview text
     st.text_area("📄 File Preview", text[:1000])
 
-    # Basic summary using TF-IDF + KMeans
+    # Generate basic summary using TF-IDF + KMeans
     st.markdown("📝 **Summary of the Document:**")
     try:
         sentences = text.split(". ")
@@ -51,9 +51,9 @@ if uploaded_file is not None:
     except Exception as e:
         st.warning("⚠️ Could not generate summary. Try a simpler file.")
 
-    # Show saved files
-    saved_files = os.listdir("uploads")
-    if saved_files:
-        st.markdown("📂 **Saved Files:**")
-        for file in saved_files:
-            st.markdown(f"- {file}")
+# Show saved files
+saved_files = os.listdir("uploads")
+if saved_files:
+    st.markdown("📂 **Saved Files:**")
+    for file in saved_files:
+        st.markdown(f"- {file}")
