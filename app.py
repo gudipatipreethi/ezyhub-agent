@@ -52,9 +52,6 @@ if saved_files:
     for file in saved_files:
         st.markdown(f"- {file}")
 
-if uploaded_file is not None:
-    file_text = uploaded_file.read().decode("utf-8", errors="ignore")
-    st.text_area("📄 File Preview", file_text[:1000])  # Show first 1000 characters
 
 # 🔍 Extract text from the uploaded file
 if uploaded_file.name.endswith(".pdf"):
@@ -86,3 +83,6 @@ summary = summary_chain.run({"text": text})
 st.markdown("📝 **Summary of the Document:**")
 st.info(summary)
 
+if uploaded_file is not None:
+    file_text = uploaded_file.read().decode("utf-8", errors="ignore")
+    st.text_area("📄 File Preview", file_text[:1000])  # Show first 1000 characters
