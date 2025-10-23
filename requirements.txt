@@ -28,3 +28,12 @@ ctransformers
 tiktoken
 guidance
 prompt-toolkit
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
+streamlit
+langchain
+faiss-cpu
+sentence-transformers
+python-docx
+deep-translator
