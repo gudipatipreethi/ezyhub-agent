@@ -5,40 +5,63 @@ from docx import Document
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
 
-# Create uploads folder if it doesn't exist
+# Create uploads folder
 os.makedirs("uploads", exist_ok=True)
 
-st.set_page_config(page_title="EzyHUB Research Agent", page_icon="🔍", layout="centered")
+# Page setup
+st.set_page_config(page_title="EzyHUB Research Agent", page_icon="🔍", layout="wide")
+
+# Sidebar
+with st.sidebar:
+    st.header("⚙️ Settings")
+    model_choice = st.selectbox("Choose model", ["Local (free)", "GPT-4 (premium)", "Mix"])
+    language = st.selectbox("Language", ["English", "Hindi", "Telugu", "Tamil"])
+    selected_file = st.selectbox("📂 View saved file", ["None"] + os.listdir("uploads"))
+
+# Header
+st.markdown("""
+<div style='text-align: center;'>
+    <a href='https://github.com/gudipatipreethi/ezyhub-agent' target='_blank'>
+        <img src='ezyhub_logo.png' width='150'>
+    </a>
+</div>
+""", unsafe_allow_html=True)
 
 st.title("EzyHUB Research Agent")
-st.markdown("Upload your research file and get a quick summary.")
+st.markdown("Upload your research file, preview its contents, and get a quick summary.")
 
-# Upload file
-uploaded_file = st.file_uploader("📎 Upload your research file", type=["pdf", "txt", "docx"])
-if uploaded_file is not None:
+# Upload new file
+uploaded_file = st.file_uploader("📎 Upload a new research file", type=["pdf", "txt", "docx"])
+if uploaded_file:
     file_name = uploaded_file.name
     file_path = os.path.join("uploads", file_name)
 
-    # Save file permanently
+    # Save permanently
     with open(file_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
-    st.success(f"✅ File saved permanently as: {file_name}")
+    st.success(f"✅ File saved as: {file_name}")
+    selected_file = file_name  # auto-select after upload
+
+# Load selected file
+if selected_file and selected_file != "None":
+    file_path = os.path.join("uploads", selected_file)
 
     # Extract text
-    if file_name.endswith(".pdf"):
+    if selected_file.endswith(".pdf"):
         reader = PdfReader(file_path)
         text = "\n".join([page.extract_text() for page in reader.pages if page.extract_text()])
-    elif file_name.endswith(".docx"):
+    elif selected_file.endswith(".docx"):
         doc = Document(file_path)
         text = "\n".join([para.text for para in doc.paragraphs])
     else:
         with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
             text = f.read()
 
-    # Preview text
-    st.text_area("📄 File Preview", text[:1000])
+    # Preview
+    with st.expander("📄 File Preview"):
+        st.text_area("Preview", text[:1000], height=300)
 
-    # Generate basic summary using TF-IDF + KMeans
+    # Summary
     st.markdown("📝 **Summary of the Document:**")
     try:
         sentences = text.split(". ")
@@ -51,9 +74,5 @@ if uploaded_file is not None:
     except Exception as e:
         st.warning("⚠️ Could not generate summary. Try a simpler file.")
 
-# Show saved files
-saved_files = os.listdir("uploads")
-if saved_files:
-    st.markdown("📂 **Saved Files:**")
-    for file in saved_files:
-        st.markdown(f"- {file}")
+else:
+    st.info("📂 Select a saved file from the sidebar to preview and summarize.")
