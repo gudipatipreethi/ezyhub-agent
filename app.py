@@ -36,7 +36,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 st.title("EzyHUB Research Agent")
-st.markdown("Upload your research file, preview its contents, and get a quick summary.")
+st.markdown("Upload your research file, preview its contents, ask questions, and get a quick summary.")
 
 # Upload new file
 uploaded_file = st.file_uploader("📎 Upload a new research file", type=["pdf", "txt", "docx"])
@@ -85,13 +85,28 @@ if selected_file and selected_file != "None":
             st.markdown("🌐 Translated Summary (Coming Soon)")
             st.write("Translation into Kannada, Tamil, Telugu will appear here.")
 
-        # Optional download placeholder
-        if download_choice != "None":
-            st.markdown("⬇️ Download option selected (Coming Soon)")
-            st.write(f"You chose: {download_choice}. Download buttons will appear here.")
+        # Optional download
+        if download_choice == "Summary only":
+            st.download_button("⬇️ Download Summary", summary, file_name="summary.txt")
+        elif download_choice == "Full text + summary":
+            full_export = f"Summary:\n{summary}\n\nFull Text:\n{text}"
+            st.download_button("⬇️ Download Full Text + Summary", full_export, file_name="full_text_summary.txt")
 
     except Exception as e:
         st.warning("⚠️ Could not generate summary. Try a simpler file.")
+
+    # Separate window to ask questions
+    st.markdown("💬 **Ask a question about this document:**")
+    user_question = st.text_input("Type your question here")
+    if user_question:
+        # Simple keyword match (placeholder for future LLM)
+        matched_sentences = [s for s in text.split(". ") if any(word.lower() in s.lower() for word in user_question.split())]
+        if matched_sentences:
+            st.success("🔍 Relevant Information:")
+            for s in matched_sentences[:5]:
+                st.write("- " + s.strip())
+        else:
+            st.info("🤔 No matching information found. Try rephrasing your question.")
 
 else:
     st.info("📂 Select a saved file from the sidebar to preview and summarize.")
