@@ -16,11 +16,19 @@ with st.sidebar:
     st.header("⚙️ Settings")
     model_choice = st.selectbox("Choose model", ["Local (free)", "GPT-4 (premium)", "Mix"])
     language = st.selectbox("Language", ["English", "Hindi", "Telugu", "Tamil"])
-    selected_file = st.selectbox("📂 View saved file", ["None"] + os.listdir("uploads"))
+    font_size = st.slider("🔠 Font size", 12, 24, 16)
+    translate_summary = st.checkbox("🌐 Translate summary")
+    download_choice = st.radio("⬇️ Download", ["None", "Summary only", "Full text + summary"])
+    search_term = st.text_input("🔎 Search in saved files")
+
+    # Filter saved files
+    all_files = os.listdir("uploads")
+    filtered_files = [f for f in all_files if search_term.lower() in f.lower()] if search_term else all_files
+    selected_file = st.selectbox("📂 View saved file", ["None"] + filtered_files)
 
 # Header
-st.markdown("""
-<div style='text-align: center;'>
+st.markdown(f"""
+<div style='text-align: center; font-size:{font_size}px'>
     <a href='https://github.com/gudipatipreethi/ezyhub-agent' target='_blank'>
         <img src='ezyhub_logo.png' width='150'>
     </a>
@@ -71,6 +79,17 @@ if selected_file and selected_file != "None":
         summary_sentences = [sentences[i] for i in range(len(sentences)) if kmeans.labels_[i] == 0]
         summary = " ".join(summary_sentences[:5])
         st.info(summary)
+
+        # Optional translation placeholder
+        if translate_summary:
+            st.markdown("🌐 Translated Summary (Coming Soon)")
+            st.write("Translation into Kannada, Tamil, Telugu will appear here.")
+
+        # Optional download placeholder
+        if download_choice != "None":
+            st.markdown("⬇️ Download option selected (Coming Soon)")
+            st.write(f"You chose: {download_choice}. Download buttons will appear here.")
+
     except Exception as e:
         st.warning("⚠️ Could not generate summary. Try a simpler file.")
 
