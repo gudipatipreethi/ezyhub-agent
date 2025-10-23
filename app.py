@@ -1,18 +1,8 @@
 import streamlit as st
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.vectorstores import FAISS
-from langchain.embeddings import HuggingFaceEmbeddings
-from langchain.chains import RetrievalQA
-from langchain.llms import OpenAI
-from PyPDF2 import PdfReader
-from docx import Document
 import os
 
 # Create a folder called 'uploads' if it doesn't exist
 os.makedirs("uploads", exist_ok=True)
-
-
-
 
 
 st.set_page_config(page_title="EzyHUB Research Agent", page_icon="🔍", layout="centered")
@@ -65,3 +55,4 @@ if saved_files:
 if uploaded_file is not None:
     file_text = uploaded_file.read().decode("utf-8", errors="ignore")
     st.text_area("📄 File Preview", file_text[:1000])  # Show first 1000 characters
+
