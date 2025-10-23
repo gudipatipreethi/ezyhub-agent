@@ -85,39 +85,3 @@ if question and uploaded_file:
     else:
         st.markdown("🧠 Answer")
         st.warning("⚠️ No direct match found. Try rephrasing your question.")
-
-if uploaded_file is not None:
-    file_path = os.path.join("uploads", uploaded_file.name)
-    with open(file_path, "wb") as f:
-        f.write(uploaded_file.getbuffer())
-    st.success(f"✅ File saved as: {uploaded_file.name}")
-
-    # 🔍 Extract text from the file
-    if uploaded_file.name.endswith(".pdf"):
-        reader = PdfReader(file_path)
-        text = "\n".join([page.extract_text() for page in reader.pages if page.extract_text()])
-    elif uploaded_file.name.endswith(".docx"):
-        doc = Document(file_path)
-        text = "\n".join([para.text for para in doc.paragraphs])
-    else:
-        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-            text = f.read()
-
-    # 🧠 Split and embed text
-    splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
-    docs = splitter.create_documents([text])
-
-    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-    db = FAISS.from_documents(docs, embeddings)
-    retriever = db.as_retriever()
-
-    # 💬 Ask a question
-    question = st.text_input("🔍 Enter your question:")
-
-    if question:
-        llm = OpenAI(openai_api_key="your-openai-key")  # Replace with your actual key
-        qa_chain = RetrievalQA.from_chain_type(llm=llm, retriever=retriever)
-        answer = qa_chain.run(question)
-
-        st.markdown("🧠 **Answer:**")
-        st.success(answer)
