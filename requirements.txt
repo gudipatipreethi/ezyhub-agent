@@ -6,6 +6,7 @@ openai
 PyPDF2
 python-docx
 scikit-learn
+ctransformers
 deep-translator
 google-api-python-client
 google-auth-httplib2

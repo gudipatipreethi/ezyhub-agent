@@ -1,30 +1,41 @@
 import streamlit as st
 import os
+import numpy as np
 from PyPDF2 import PdfReader
 from docx import Document
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
+from sentence_transformers import SentenceTransformer
+import faiss
+from deep_translator import GoogleTranslator
+from ctransformers import AutoModelForCausalLM
+from streamlit_webrtc import webrtc_streamer, WebRtcMode, ClientSettings
+import whisper
+import av
 
-# Create uploads folder
+# Setup
 os.makedirs("uploads", exist_ok=True)
-
-# Page setup
 st.set_page_config(page_title="EzyHUB Research Agent", page_icon="🔍", layout="wide")
 
 # Sidebar
 with st.sidebar:
     st.header("⚙️ Settings")
-    model_choice = st.selectbox("Choose model", ["Local (free)", "GPT-4 (premium)", "Mix"])
+    model_choice = st.selectbox("Choose model", ["Local LLM", "GPT-4 (premium)", "Mix"])
     language = st.selectbox("Language", ["English", "Hindi", "Telugu", "Tamil"])
     font_size = st.slider("🔠 Font size", 12, 24, 16)
     translate_summary = st.checkbox("🌐 Translate summary")
     download_choice = st.radio("⬇️ Download", ["None", "Summary only", "Full text + summary"])
     search_term = st.text_input("🔎 Search in saved files")
-
-    # Filter saved files
     all_files = os.listdir("uploads")
     filtered_files = [f for f in all_files if search_term.lower() in f.lower()] if search_term else all_files
     selected_file = st.selectbox("📂 View saved file", ["None"] + filtered_files)
+
+    with st.expander("🧠 How to Set Up Mistral LLM"):
+        st.markdown("""
+        1. Download a `.gguf` model file from [Hugging Face](https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF).
+        2. Place it in your project folder (same level as `app.py`).
+        3. Make sure your `requirements.txt` includes `ctransformers`.
+        """)
 
 # Header
 st.markdown(f"""
@@ -38,23 +49,20 @@ st.markdown(f"""
 st.title("EzyHUB Research Agent")
 st.markdown("Upload your research file, preview its contents, ask questions, and get a quick summary.")
 
-# Upload new file
+# Upload
 uploaded_file = st.file_uploader("📎 Upload a new research file", type=["pdf", "txt", "docx"])
 if uploaded_file:
     file_name = uploaded_file.name
     file_path = os.path.join("uploads", file_name)
-
-    # Save permanently
     with open(file_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
     st.success(f"✅ File saved as: {file_name}")
-    selected_file = file_name  # auto-select after upload
+    selected_file = file_name
 
-# Load selected file
+# Load and extract
+text = ""
 if selected_file and selected_file != "None":
     file_path = os.path.join("uploads", selected_file)
-
-    # Extract text
     if selected_file.endswith(".pdf"):
         reader = PdfReader(file_path)
         text = "\n".join([page.extract_text() for page in reader.pages if page.extract_text()])
@@ -65,9 +73,7 @@ if selected_file and selected_file != "None":
         with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
             text = f.read()
 
-    # Preview
-    with st.expander("📄 File Preview"):
-        st.text_area("Preview", text[:1000], height=300)
+    st.text_area("📄 File Preview", text[:1000], height=300)
 
     # Summary
     st.markdown("📝 **Summary of the Document:**")
@@ -80,12 +86,18 @@ if selected_file and selected_file != "None":
         summary = " ".join(summary_sentences[:5])
         st.info(summary)
 
-        # Optional translation placeholder
         if translate_summary:
-            st.markdown("🌐 Translated Summary (Coming Soon)")
-            st.write("Translation into Kannada, Tamil, Telugu will appear here.")
+            st.markdown("🌐 Translated Summary:")
+            try:
+                lang_map = {"Hindi": "hi", "Tamil": "ta", "Telugu": "te"}
+                if language in lang_map:
+                    translated = GoogleTranslator(source='auto', target=lang_map[language]).translate(summary)
+                    st.success(translated)
+                else:
+                    st.info("No translation needed for English.")
+            except Exception as e:
+                st.warning("⚠️ Translation failed.")
 
-        # Optional download
         if download_choice == "Summary only":
             st.download_button("⬇️ Download Summary", summary, file_name="summary.txt")
         elif download_choice == "Full text + summary":
@@ -93,20 +105,84 @@ if selected_file and selected_file != "None":
             st.download_button("⬇️ Download Full Text + Summary", full_export, file_name="full_text_summary.txt")
 
     except Exception as e:
-        st.warning("⚠️ Could not generate summary. Try a simpler file.")
+        st.warning("⚠️ Could not generate summary.")
 
-    # Separate window to ask questions
-    st.markdown("💬 **Ask a question about this document:**")
-    user_question = st.text_input("Type your question here")
-    if user_question:
-        # Simple keyword match (placeholder for future LLM)
-        matched_sentences = [s for s in text.split(". ") if any(word.lower() in s.lower() for word in user_question.split())]
-        if matched_sentences:
-            st.success("🔍 Relevant Information:")
-            for s in matched_sentences[:5]:
-                st.write("- " + s.strip())
+    # RAG setup
+    model = SentenceTransformer("all-MiniLM-L6-v2")
+    chunks = [text[i:i+500] for i in range(0, len(text), 500)]
+    embeddings = model.encode(chunks)
+    index = faiss.IndexFlatL2(len(embeddings[0]))
+    index.add(embeddings)
+
+    # Load local LLM
+    try:
+        llm = AutoModelForCausalLM.from_pretrained(
+            "TheBloke/Mistral-7B-Instruct-v0.1-GGUF",
+            model_file="mistral-7b-instruct-v0.1.Q4_K_M.gguf",
+            model_type="mistral"
+        )
+    except Exception as e:
+        llm = None
+        st.warning("⚠️ Local LLM not loaded. Check model path or install.")
+
+    # File-specific chat history
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = {}
+    if selected_file not in st.session_state.chat_history:
+        st.session_state.chat_history[selected_file] = []
+
+    # Voice input
+    st.markdown("🎙️ **Voice Input (Experimental)**")
+
+    @st.cache_resource
+    def load_whisper_model():
+        return whisper.load_model("base")
+
+    whisper_model = load_whisper_model()
+
+    def transcribe_audio(frame):
+        audio = np.frombuffer(frame.to_ndarray(), dtype=np.int16).flatten().astype(np.float32) / 32768.0
+        result = whisper_model.transcribe(audio, fp16=False)
+        return result["text"]
+
+    webrtc_ctx = webrtc_streamer(
+        key="speech",
+        mode=WebRtcMode.SENDONLY,
+        client_settings=ClientSettings(
+            media_stream_constraints={"audio": True, "video": False},
+            rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
+        ),
+        audio_receiver_size=1024,
+        async_processing=True,
+    )
+
+    if webrtc_ctx.audio_receiver:
+        audio_frames = webrtc_ctx.audio_receiver.get_frames(timeout=1)
+        if audio_frames:
+            transcription = transcribe_audio(audio_frames[0])
+            if transcription:
+                st.session_state["voice_input"] = transcription
+                st.success(f"🗣️ You said: {transcription}")
+
+    # Chat interface
+    user_input = st.chat_input("Ask a question about your document", value=st.session_state.get("voice_input", ""))
+    st.session_state["voice_input"] = ""
+
+    if user_input:
+        st.session_state.chat_history[selected_file].append(("user", user_input))
+        question_embedding = model.encode([user_input])
+        _, I = index.search(question_embedding, k=3)
+        context = "\n".join([chunks[i] for i in I[0]])
+        prompt = f"Answer the question based on the context below.\n\nContext:\n{context}\n\nQuestion: {user_input}\nAnswer:"
+        if llm:
+            response = llm(prompt)
         else:
-            st.info("🤔 No matching information found. Try rephrasing your question.")
+            response = f"(LLM unavailable) Based on your document:\n\n{context[:500]}..."
+        st.session_state.chat_history[selected_file].append(("assistant", response))
+
+    for role, msg in st.session_state.chat_history[selected_file]:
+        with st.chat_message(role):
+            st.write(msg)
 
 else:
-    st.info("📂 Select a saved file from the sidebar to preview and summarize.")
+    st.info("📂 Select a saved file from the sidebar to preview and chat.")
