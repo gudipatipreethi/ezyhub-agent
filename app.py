@@ -65,23 +65,3 @@ if saved_files:
 if uploaded_file is not None:
     file_text = uploaded_file.read().decode("utf-8", errors="ignore")
     st.text_area("📄 File Preview", file_text[:1000])  # Show first 1000 characters
-
-if uploaded_file:
-    st.success(f"Uploaded: {uploaded_file.name}")
-    with st.expander("📄 File Preview"):
-        file_text = uploaded_file.read().decode("utf-8", errors="ignore")
-        st.text(file_text[:1000])  # Show first 1000 characters
-
-question = st.text_input("🔍 Enter your question:")
-
-if question and uploaded_file:
-    # Load file content
-    file_text = uploaded_file.read().decode("utf-8", errors="ignore")
-
-    # Simple keyword search (temporary logic)
-    if question.lower() in file_text.lower():
-        st.markdown("🧠 Answer")
-        st.success("✅ Found something related in your file!")
-    else:
-        st.markdown("🧠 Answer")
-        st.warning("⚠️ No direct match found. Try rephrasing your question.")
