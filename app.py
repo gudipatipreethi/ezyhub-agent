@@ -1,5 +1,9 @@
 import streamlit as st
 import os
+from langchain.prompts import PromptTemplate
+from langchain.chains import LLMChain
+from langchain.llms import OpenAI
+
 
 # Create a folder called 'uploads' if it doesn't exist
 os.makedirs("uploads", exist_ok=True)
@@ -46,6 +50,55 @@ if uploaded_file is not None:
 
     st.success(f"✅ File saved as: {uploaded_file.name}")
 
+# Extract text based on file type
+if file_name.endswith(".pdf"):
+    reader = PdfReader(file_path)
+    text = "\n".join([page.extract_text() for page in reader.pages if page.extract_text()])
+elif file_name.endswith(".docx"):
+    doc = Document(file_path)
+    text = "\n".join([para.text for para in doc.paragraphs])
+else:
+    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+        text = f.read()
+
+st.text_area("📄 File Preview", text[:1000])
+
+
+if file_name.endswith(".pdf"):
+    ...
+elif file_name.endswith(".docx"):
+    ...
+else:
+    ...
+
+
+# 📝 Generate summary using LangChain
+summary_prompt = PromptTemplate.from_template("Summarize this document:\n{text}")
+llm = OpenAI(openai_api_key="your-openai-key")  # Replace with your actual key
+summary_chain = LLMChain(llm=llm, prompt=summary_prompt)
+summary = summary_chain.run({"text": text})
+
+# Display summary
+st.markdown("📝 **Summary of the Document:**")
+st.info(summary)
+
+
+from deep_translator import GoogleTranslator
+
+kannada = GoogleTranslator(source='auto', target='kn').translate(summary)
+tamil = GoogleTranslator(source='auto', target='ta').translate(summary)
+telugu = GoogleTranslator(source='auto', target='te').translate(summary)
+
+with st.expander("🌐 Kannada Summary"):
+    st.write(kannada)
+
+with st.expander("🌐 Tamil Summary"):
+    st.write(tamil)
+
+with st.expander("🌐 Telugu Summary"):
+    st.write(telugu)
+
+
 saved_files = os.listdir("uploads")
 if saved_files:
     st.markdown("📂 **Saved Files:**")
@@ -53,36 +106,7 @@ if saved_files:
         st.markdown(f"- {file}")
 
 
-# 🔍 Extract text from the uploaded file
-if uploaded_file.name.endswith(".pdf"):
-    from PyPDF2 import PdfReader
-    reader = PdfReader(file_path)
-    text = "\n".join([page.extract_text() for page in reader.pages if page.extract_text()])
 
-elif uploaded_file.name.endswith(".docx"):
-    from docx import Document
-    doc = Document(file_path)
-    text = "\n".join([para.text for para in doc.paragraphs])
 
-else:
-    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-        text = f.read()
 
-st.text_area("📄 File Preview", text[:1000])  # Optional preview
 
-# 📝 Generate summary using LangChain
-from langchain.prompts import PromptTemplate
-from langchain.chains import LLMChain
-from langchain.llms import OpenAI
-
-summary_prompt = PromptTemplate.from_template("Summarize this document:\n{text}")
-llm = OpenAI(openai_api_key="your-openai-key")  # Replace with your actual key
-summary_chain = LLMChain(llm=llm, prompt=summary_prompt)
-summary = summary_chain.run({"text": text})
-
-st.markdown("📝 **Summary of the Document:**")
-st.info(summary)
-
-if uploaded_file is not None:
-    file_text = uploaded_file.read().decode("utf-8", errors="ignore")
-    st.text_area("📄 File Preview", file_text[:1000])  # Show first 1000 characters
