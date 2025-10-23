@@ -42,13 +42,16 @@ if uploaded_file:
         file_text = uploaded_file.read().decode("utf-8", errors="ignore")
         st.text(file_text[:1000])  # Show first 1000 characters
 
-query = st.text_input("🔍 Enter your question:")
+question = st.text_input("🔍 Enter your question:")
 
-if query:
-    # Replace this with your actual function that connects to FAISS + local LLM
-    def ask_research_agent(question):
-        return "This is a placeholder answer. Replace with your real function."
+if question and uploaded_file:
+    # Load file content
+    file_text = uploaded_file.read().decode("utf-8", errors="ignore")
 
-    answer = ask_research_agent(query)
-    st.markdown("### 🧠 Answer")
-    st.write(answer)
+    # Simple keyword search (temporary logic)
+    if question.lower() in file_text.lower():
+        st.markdown("🧠 Answer")
+        st.success("✅ Found something related in your file!")
+    else:
+        st.markdown("🧠 Answer")
+        st.warning("⚠️ No direct match found. Try rephrasing your question.")
