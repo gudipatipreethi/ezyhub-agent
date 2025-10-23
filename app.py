@@ -61,52 +61,25 @@ else:
     with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
         text = f.read()
 
+# After saving uploaded file and extracting `text`
+
 st.text_area("📄 File Preview", text[:1000])
 
-
-if file_name.endswith(".pdf"):
-    ...
-elif file_name.endswith(".docx"):
-    ...
-else:
-    ...
-
-
-# 📝 Generate summary using LangChain
+# Generate summary
 summary_prompt = PromptTemplate.from_template("Summarize this document:\n{text}")
-llm = OpenAI(openai_api_key="your-openai-key")  # Replace with your actual key
+llm = OpenAI(openai_api_key="your-openai-key")
 summary_chain = LLMChain(llm=llm, prompt=summary_prompt)
 summary = summary_chain.run({"text": text})
 
-# Display summary
 st.markdown("📝 **Summary of the Document:**")
 st.info(summary)
 
+# Translate summary (optional)
+# ... your multilingual translation code here ...
 
-from deep_translator import GoogleTranslator
-
-kannada = GoogleTranslator(source='auto', target='kn').translate(summary)
-tamil = GoogleTranslator(source='auto', target='ta').translate(summary)
-telugu = GoogleTranslator(source='auto', target='te').translate(summary)
-
-with st.expander("🌐 Kannada Summary"):
-    st.write(kannada)
-
-with st.expander("🌐 Tamil Summary"):
-    st.write(tamil)
-
-with st.expander("🌐 Telugu Summary"):
-    st.write(telugu)
-
-
+# Show saved files (optional)
 saved_files = os.listdir("uploads")
 if saved_files:
     st.markdown("📂 **Saved Files:**")
     for file in saved_files:
         st.markdown(f"- {file}")
-
-
-
-
-
-
