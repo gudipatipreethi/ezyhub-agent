@@ -6,18 +6,16 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
 from deep_translator import GoogleTranslator
 
-# Create uploads folder
+# Setup
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
-
-# Page setup
 st.set_page_config(page_title="EzyHUB Research Agent", page_icon="🔍", layout="wide")
 
-# Initialize session state for selected file
+# Initialize session state
 if "selected_file" not in st.session_state:
     st.session_state.selected_file = "None"
 
-# Sidebar settings
+# Sidebar
 with st.sidebar:
     st.header("⚙️ Settings")
     language = st.selectbox("Translate summary to", ["None", "Hindi", "Tamil", "Telugu"])
@@ -25,14 +23,14 @@ with st.sidebar:
     search_term = st.text_input("🔎 Search in saved files")
 
     # Refresh file list
-    all_files = os.listdir(UPLOAD_DIR)
+    all_files = sorted(os.listdir(UPLOAD_DIR))
     filtered_files = [f for f in all_files if search_term.lower() in f.lower()] if search_term else all_files
 
     # File selector
-    selected = st.selectbox("📂 View saved file", ["None"] + filtered_files, index=filtered_files.index(st.session_state.selected_file) + 1 if st.session_state.selected_file in filtered_files else 0)
+    selected = st.selectbox("📂 View saved file", ["None"] + filtered_files, index=(["None"] + filtered_files).index(st.session_state.selected_file) if st.session_state.selected_file in filtered_files else 0)
     st.session_state.selected_file = selected
 
-# Upload new file
+# Upload
 uploaded_file = st.file_uploader("📎 Upload a new research file", type=["pdf", "txt", "docx"])
 if uploaded_file:
     file_name = uploaded_file.name
@@ -40,10 +38,9 @@ if uploaded_file:
     with open(file_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
     st.success(f"✅ File saved as: {file_name}")
-    st.session_state.selected_file = file_name  # auto-select after upload
-    st.experimental_rerun()  # refresh to update sidebar
+    st.session_state.selected_file = file_name
 
-# Load and extract text
+# Load and extract
 text = ""
 if st.session_state.selected_file and st.session_state.selected_file != "None":
     file_path = os.path.join(UPLOAD_DIR, st.session_state.selected_file)
@@ -65,7 +62,7 @@ if st.session_state.selected_file and st.session_state.selected_file != "None":
     if text:
         st.text_area("📄 File Preview", text[:1000], height=300)
 
-        # Generate summary
+        # Summary
         st.markdown("📝 **Summary of the Document:**")
         try:
             sentences = [s.strip() for s in text.split(". ") if len(s.strip()) > 20]
@@ -78,7 +75,7 @@ if st.session_state.selected_file and st.session_state.selected_file != "None":
             summary = " ".join(summary_sentences[:5])
             st.info(summary)
 
-            # Translate summary
+            # Translation
             if language != "None":
                 lang_map = {"Hindi": "hi", "Tamil": "ta", "Telugu": "te"}
                 try:
@@ -88,7 +85,7 @@ if st.session_state.selected_file and st.session_state.selected_file != "None":
                 except Exception as e:
                     st.warning("⚠️ Translation failed. Please check your internet or try again.")
 
-            # Download options
+            # Download
             if download_choice == "Summary only":
                 st.download_button("⬇️ Download Summary", summary, file_name="summary.txt")
             elif download_choice == "Full text + summary":
