@@ -6,12 +6,16 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
 from deep_translator import GoogleTranslator
 
-# Create uploads folder if it doesn't exist
+# Create uploads folder
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # Page setup
 st.set_page_config(page_title="EzyHUB Research Agent", page_icon="🔍", layout="wide")
+
+# Initialize session state for selected file
+if "selected_file" not in st.session_state:
+    st.session_state.selected_file = "None"
 
 # Sidebar settings
 with st.sidebar:
@@ -19,9 +23,14 @@ with st.sidebar:
     language = st.selectbox("Translate summary to", ["None", "Hindi", "Tamil", "Telugu"])
     download_choice = st.radio("⬇️ Download", ["None", "Summary only", "Full text + summary"])
     search_term = st.text_input("🔎 Search in saved files")
+
+    # Refresh file list
     all_files = os.listdir(UPLOAD_DIR)
     filtered_files = [f for f in all_files if search_term.lower() in f.lower()] if search_term else all_files
-    selected_file = st.selectbox("📂 View saved file", ["None"] + filtered_files)
+
+    # File selector
+    selected = st.selectbox("📂 View saved file", ["None"] + filtered_files, index=filtered_files.index(st.session_state.selected_file) + 1 if st.session_state.selected_file in filtered_files else 0)
+    st.session_state.selected_file = selected
 
 # Upload new file
 uploaded_file = st.file_uploader("📎 Upload a new research file", type=["pdf", "txt", "docx"])
@@ -31,20 +40,21 @@ if uploaded_file:
     with open(file_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
     st.success(f"✅ File saved as: {file_name}")
-    selected_file = file_name  # auto-select after upload
+    st.session_state.selected_file = file_name  # auto-select after upload
+    st.experimental_rerun()  # refresh to update sidebar
 
 # Load and extract text
 text = ""
-if selected_file and selected_file != "None":
-    file_path = os.path.join(UPLOAD_DIR, selected_file)
+if st.session_state.selected_file and st.session_state.selected_file != "None":
+    file_path = os.path.join(UPLOAD_DIR, st.session_state.selected_file)
     try:
-        if selected_file.endswith(".pdf"):
+        if st.session_state.selected_file.endswith(".pdf"):
             reader = PdfReader(file_path)
             text = "\n".join([page.extract_text() for page in reader.pages if page.extract_text()])
-        elif selected_file.endswith(".docx"):
+        elif st.session_state.selected_file.endswith(".docx"):
             doc = Document(file_path)
             text = "\n".join([para.text for para in doc.paragraphs])
-        elif selected_file.endswith(".txt"):
+        elif st.session_state.selected_file.endswith(".txt"):
             with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                 text = f.read()
         else:
